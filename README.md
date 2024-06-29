@@ -1,6 +1,6 @@
 # Meta Llama Demo
 
-This repository contains a demo script for running Meta Llama on Windows using PyTorch.
+This repository contains a demo script for running Meta Llama on Linux using PyTorch.
 
 ## Requirements
 
