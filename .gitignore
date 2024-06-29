@@ -83,6 +83,9 @@ target/
 profile_default/
 ipython_config.py
 
+tokenized_examples.txt
+generated_prompts.txt
+
 # pyenv
 # .python-version
 
