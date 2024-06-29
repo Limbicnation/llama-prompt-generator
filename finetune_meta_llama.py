@@ -75,11 +75,11 @@ def tokenize_function(examples):
                 max_length=512, 
                 return_tensors="pt"
             )
+            inputs["labels"] = inputs["input_ids"].clone()  # Set labels for training
             # Save the examples to a text file
             with open(output_file, "a") as f:
                 for prompt in examples["prompt"]:
                     f.write(prompt + "\n")
-            inputs["labels"] = inputs["input_ids"].clone()  # Set labels for training
             return inputs
         except Exception as e:
             print(f"Error during tokenization: {e}")
