@@ -1,3 +1,5 @@
+import json
+import argparse
 import transformers
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -51,31 +53,50 @@ def generate_text(pipeline: transformers.pipelines.TextGenerationPipeline, promp
     )
     return [seq['generated_text'] for seq in sequences]
 
+def load_prompts(file_path: str, themes: List[str] = None) -> List[str]:
+    """
+    Load prompts from a JSON file and filter them based on the provided themes.
+
+    Args:
+        file_path (str): The path to the JSON file containing prompts.
+        themes (List[str], optional): List of themes to filter prompts by. Defaults to None.
+
+    Returns:
+        List[str]: The filtered list of prompts.
+    """
+    with open(file_path, "r") as f:
+        prompts = json.load(f)
+    
+    if themes:
+        themes_set = set(themes)
+        valid_prompts = [prompt['text'] for prompt in prompts if themes_set.intersection(prompt['themes'])]
+    else:
+        valid_prompts = [prompt['text'] for prompt in prompts]
+    
+    return valid_prompts
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate text with specified themes and limit output count.")
+    parser.add_argument('--themes', nargs='+', help='List of themes to filter prompts by.')
+    parser.add_argument('--output_count', type=int, default=10, help='Total number of output prompts to generate.')
+    args = parser.parse_args()
+
     model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, pipeline = load_model(model_name)
     
-    # Load prompts from the text file
-    with open("tokenized_examples.txt", "r") as f:
-        prompts = f.readlines()
+    # Load and filter prompts
+    valid_prompts = load_prompts("tokenized_examples.json", themes=args.themes)
     
-    # Validate and preprocess prompts
-    valid_prompts = []
-    for prompt in prompts:
-        prompt = prompt.strip()
-        if prompt:  # Skip empty lines
-            valid_prompts.append(prompt)
-        else:
-            print(f"Skipping invalid prompt: {prompt}")
-
     if not valid_prompts:
-        print("No valid prompts found in the file.")
+        print("No valid prompts found for the specified themes.")
         exit()
 
-    # Open a file to save the generated prompts
-    with open("generated_prompts.txt", "w") as out_f:
+    # Open a file to save the generated texts
+    with open("generated_texts.txt", "w") as out_f:
         # Generate and save text for each prompt
-        for prompt in valid_prompts:
+        for i, prompt in enumerate(valid_prompts):
+            if i >= args.output_count:
+                break
             try:
                 sequences = generate_text(pipeline, prompt, tokenizer)
                 for seq in sequences:
