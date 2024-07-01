@@ -1,8 +1,8 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorWithPadding
-from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
+from peft import get_peft_model, LoraConfig, TaskType
 import datasets
 import torch
-import bitsandbytes as bnb  # Import bitsandbytes for quantization
+import bitsandbytes as bnb
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
@@ -46,7 +46,6 @@ def cast_training_params(model: Union[torch.nn.Module, List[torch.nn.Module]], d
         model = [model]
     for m in model:
         for param in m.parameters():
-            # Only upcast trainable parameters into FP32
             if param.requires_grad:
                 param.data = param.to(dtype)
 
@@ -64,19 +63,20 @@ with open(output_file, "w") as f:
 
 # Tokenize dataset with added checks and logging
 def tokenize_function(examples):
-    print(f"Examples to tokenize: {examples['prompt'][:2]}")  # Log the first few examples
-    # Ensure inputs are in the expected format
+    print(f"Examples to tokenize: {examples['prompt'][:2]}")
     if isinstance(examples["prompt"], list) and all(isinstance(item, str) for item in examples["prompt"]):
         try:
             inputs = tokenizer(
                 examples["prompt"], 
-                padding='max_length', 
+                padding=True, 
                 truncation=True, 
                 max_length=512, 
                 return_tensors="pt"
             )
-            inputs["labels"] = inputs["input_ids"].clone()  # Set labels for training
-            # Save the examples to a text file
+            print(f"Tokenized inputs: {inputs}")
+            for key, value in inputs.items():
+                print(f"{key}: shape {value.shape}, type {type(value)}")
+            inputs["labels"] = inputs["input_ids"].clone()
             with open(output_file, "a") as f:
                 for prompt in examples["prompt"]:
                     f.write(prompt + "\n")
@@ -107,12 +107,12 @@ train_loader = DataLoader(tokenized_datasets, batch_size=1, shuffle=True, collat
 # Training configuration
 training_args = TrainingArguments(
     output_dir="./results",
-    per_device_train_batch_size=1,  # Reduce batch size
+    per_device_train_batch_size=1,
     per_device_eval_batch_size=1,
-    gradient_accumulation_steps=8,  # Use gradient accumulation
+    gradient_accumulation_steps=8,
     num_train_epochs=3,
     logging_dir="./logs",
-    dataloader_pin_memory=False,  # Avoid memory spikes
+    dataloader_pin_memory=False,
 )
 
 # Prepare optimizer and scaler
@@ -132,11 +132,8 @@ for epoch in range(training_args.num_train_epochs):
             loss = outputs.loss
 
         scaler.scale(loss).backward()
-
-        # Unscales the gradients of optimizer's assigned params in-place
         scaler.unscale_(optimizer)
 
-        # Check for inf or NaN gradients before optimizer step
         found_inf = False
         for param in model.parameters():
             if param.grad is not None:
@@ -154,3 +151,9 @@ for epoch in range(training_args.num_train_epochs):
             print(f"Epoch {epoch}, Step {step}, Loss: {loss.item()}")
 
 print("Training complete.")
+
+# Save the model with LoRA parameters
+save_path = "/mnt/TurboTux/AnacondaWorkspace/huggingface/models"
+model.save_pretrained(save_path)
+tokenizer.save_pretrained(save_path)
+print(f"Model and tokenizer saved to {save_path}")

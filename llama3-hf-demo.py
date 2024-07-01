@@ -55,31 +55,31 @@ if __name__ == "__main__":
     model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, pipeline = load_model(model_name)
     
-    # Load prompts from the text file
-    with open("tokenized_examples.txt", "r") as f:
-        prompts = f.readlines()
+    try:
+        # Load prompts from the text file
+        with open("tokenized_examples.txt", "r") as f:
+            prompts = f.readlines()
+        
+        # Validate and preprocess prompts
+        valid_prompts = [prompt.strip() for prompt in prompts if prompt.strip()]
+        
+        if not valid_prompts:
+            print("No valid prompts found in the file.")
+            exit()
+        
+        # Open a file to save the generated prompts
+        with open("generated_prompts.txt", "w") as out_f:
+            # Generate and save text for each prompt
+            for prompt in valid_prompts:
+                try:
+                    sequences = generate_text(pipeline, prompt, tokenizer)
+                    for seq in sequences:
+                        out_f.write(f"Prompt: {prompt}\nGenerated: {seq}\n\n")
+                        print(f"Prompt: {prompt}\nGenerated: {seq}\n")
+                except Exception as e:
+                    print(f"Error generating text for prompt '{prompt}': {e}")
     
-    # Validate and preprocess prompts
-    valid_prompts = []
-    for prompt in prompts:
-        prompt = prompt.strip()
-        if prompt:  # Skip empty lines
-            valid_prompts.append(prompt)
-        else:
-            print(f"Skipping invalid prompt: {prompt}")
-
-    if not valid_prompts:
-        print("No valid prompts found in the file.")
-        exit()
-
-    # Open a file to save the generated prompts
-    with open("generated_prompts.txt", "w") as out_f:
-        # Generate and save text for each prompt
-        for prompt in valid_prompts:
-            try:
-                sequences = generate_text(pipeline, prompt, tokenizer)
-                for seq in sequences:
-                    out_f.write(f"Prompt: {prompt}\nGenerated: {seq}\n\n")
-                    print(f"Prompt: {prompt}\nGenerated: {seq}\n")
-            except Exception as e:
-                print(f"Error generating text for prompt '{prompt}': {e}")
+    except FileNotFoundError:
+        print("The file 'tokenized_examples.txt' was not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
