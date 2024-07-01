@@ -9,7 +9,7 @@ __pycache__/
 # Ignore generated prompts and tokenized examples
 generated_prompts.txt
 tokenized_examples.txt
-
+tokenized_examples.json
 
 # C extensions
 *.so
