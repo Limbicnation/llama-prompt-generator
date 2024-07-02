@@ -38,8 +38,21 @@ python finetune_meta_llama.py
 
 ### Generate Text
 
-Run the `generate_text.py` script to generate text based on the prompts and themes.
+Run the generate_text.py script to generate text based on the prompts and themes. 🚀🚀
+
+
+You can now use these updated commands for additional info. 
+
+
+- `--themes`: Include themes by specifying common stable diffusion themes.
+   - Example: `--themes scifi`
+- `--output_count`: Control the number of output logs by specifying the desired number.
+   - Example: `--output_count 1200`
+- `--include_metadata`: Include additional metadata in the generated text outputs.
+- `--log_generation`: Enable detailed logging of the generation process.
+
+
 
 ```sh
-python generate_text.py --themes scifi --output_count 10 🚀🚀
+python generate_text.py --themes scifi fantasy horror art --output_count 1200 --log_generation --include_metadata
 ```

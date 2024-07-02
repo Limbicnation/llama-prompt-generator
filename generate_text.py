@@ -1,9 +1,11 @@
 import json
 import argparse
+import os
 import transformers
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from typing import Tuple, List
+from datetime import datetime
 
 def load_model(model_name: str) -> Tuple[AutoTokenizer, transformers.pipelines.TextGenerationPipeline]:
     """
@@ -53,6 +55,17 @@ def generate_text(pipeline: transformers.pipelines.TextGenerationPipeline, promp
     )
     return [seq['generated_text'] for seq in sequences]
 
+def generate_output_suffix() -> str:
+    """
+    Generate a suffix for the output filename based on the current date and characteristics.
+
+    Returns:
+        str: The generated suffix.
+    """
+    date_str = datetime.now().strftime("%Y%m%d")
+    suffix = f"Text_Generation_Results_{date_str}"
+    return suffix
+
 def load_prompts(file_path: str, themes: List[str] = None) -> List[str]:
     """
     Load prompts from a JSON file and filter them based on the provided themes.
@@ -79,6 +92,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate text with specified themes and limit output count.")
     parser.add_argument('--themes', nargs='+', help='List of themes to filter prompts by.')
     parser.add_argument('--output_count', type=int, default=10, help='Total number of output prompts to generate.')
+    parser.add_argument('--log_generation', action='store_true', help='Enable detailed logging of the generation process.')
+    parser.add_argument('--include_metadata', action='store_true', help='Include additional metadata in the generated text outputs.')
     args = parser.parse_args()
 
     model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
@@ -91,8 +106,12 @@ if __name__ == "__main__":
         print("No valid prompts found for the specified themes.")
         exit()
 
+    output_suffix = generate_output_suffix()
+    output_dir = os.path.dirname(f"generated_texts_{output_suffix}.txt")
+    os.makedirs(output_dir, exist_ok=True)
+
     # Open a file to save the generated texts
-    with open("generated_texts.txt", "w") as out_f:
+    with open(f"generated_texts_{output_suffix}.txt", "w") as out_f:
         # Generate and save text for each prompt
         for i, prompt in enumerate(valid_prompts):
             if i >= args.output_count:
@@ -100,7 +119,15 @@ if __name__ == "__main__":
             try:
                 sequences = generate_text(pipeline, prompt, tokenizer)
                 for seq in sequences:
-                    out_f.write(f"Prompt: {prompt}\nGenerated: {seq}\n\n")
-                    print(f"Prompt: {prompt}\nGenerated: {seq}\n")
+                    if args.include_metadata:
+                        metadata = f"Prompt: {prompt}\nGenerated: {seq}\nModel: {model_name}\nDate: {datetime.now()}\n"
+                    else:
+                        metadata = f"Prompt: {prompt}\nGenerated: {seq}\n"
+                    out_f.write(metadata)
+                    print(metadata)
+                    if args.log_generation:
+                        print(f"Logging: Prompt '{prompt}' generated successfully.")
             except Exception as e:
                 print(f"Error generating text for prompt '{prompt}': {e}")
+                if args.log_generation:
+                    print(f"Logging: Error generating text for prompt '{prompt}': {e}")
