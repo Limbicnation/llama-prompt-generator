@@ -1,4 +1,3 @@
-```markdown
 # Meta Llama Demo
 
 This repository contains a demo script for running Meta Llama on Linux using PyTorch.
