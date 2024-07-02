@@ -1,3 +1,6 @@
+import json
+import re
+from collections import Counter
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainingArguments, DataCollatorWithPadding
 from peft import get_peft_model, LoraConfig, TaskType
 import datasets
@@ -56,10 +59,27 @@ cast_training_params(model)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device, dtype=torch.float16)
 
-# Prepare a text file to save tokenized examples
-output_file = "tokenized_examples.txt"
+# Prepare a JSON file to save tokenized examples
+output_file = "tokenized_examples.json"
 with open(output_file, "w") as f:
-    pass  # Clear the file if it exists
+    json.dump([], f)  # Initialize the file with an empty list
+
+# Define a function to assign themes based on the text content
+def assign_themes(text: str) -> List[str]:
+    words = re.findall(r'\b\w+\b', text.lower())
+    common_words = [word for word, _ in Counter(words).most_common()]
+    themes = []
+    if any(word in common_words for word in ["scifi", "futuristic", "alien"]):
+        themes.append("scifi")
+    if any(word in common_words for word in ["magic", "fantasy", "wizard"]):
+        themes.append("fantasy")
+    if any(word in common_words for word in ["nature", "animal", "tree"]):
+        themes.append("nature")
+    if any(word in common_words for word in ["horror", "dark", "ghost"]):
+        themes.append("horror")
+    if any(word in common_words for word in ["art", "painting", "drawing"]):
+        themes.append("art")
+    return themes
 
 # Tokenize dataset with added checks and logging
 def tokenize_function(examples):
@@ -77,9 +97,21 @@ def tokenize_function(examples):
             for key, value in inputs.items():
                 print(f"{key}: shape {value.shape}, type {type(value)}")
             inputs["labels"] = inputs["input_ids"].clone()
-            with open(output_file, "a") as f:
-                for prompt in examples["prompt"]:
-                    f.write(prompt + "\n")
+            
+            # Save the examples to a JSON file
+            tokenized_examples = []
+            for i, prompt in enumerate(examples["prompt"]):
+                tokenized_examples.append({
+                    "text": prompt,
+                    "themes": assign_themes(prompt)
+                })
+            
+            with open(output_file, "r+") as f:
+                data = json.load(f)
+                data.extend(tokenized_examples)
+                f.seek(0)
+                json.dump(data, f, indent=4)
+            
             return inputs
         except Exception as e:
             print(f"Error during tokenization: {e}")
