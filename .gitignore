@@ -12,7 +12,8 @@ tokenized_examples.txt
 tokenized_examples.json
 generated_texts.txt
 generated_texts_Layers/*
-
+generated_texts_Text_Generation_Results_20240702_v01.txt
+generated_texts_Text_Generation_Results_20240702.txt
 
 # C extensions
 *.so
