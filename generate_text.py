@@ -88,30 +88,70 @@ def load_prompts(file_path: str, themes: List[str] = None) -> List[str]:
     
     return valid_prompts
 
+def generate_prompts_from_model(pipeline: transformers.pipelines.TextGenerationPipeline, themes: List[str], tokenizer: AutoTokenizer, max_length: int = 50) -> List[str]:
+    """
+    Generate prompts using the model pipeline based on the specified themes.
+
+    Args:
+        pipeline (transformers.pipelines.TextGenerationPipeline): The text generation pipeline.
+        themes (List[str]): The themes to generate prompts for.
+        tokenizer (AutoTokenizer): The tokenizer used by the pipeline.
+        max_length (int): The maximum length of the generated prompts.
+
+    Returns:
+        List[str]: The generated prompts.
+    """
+    prompts = []
+    for theme in themes:
+        prompt = f"Generate a prompt about {theme}"
+        sequences = generate_text(pipeline, prompt, tokenizer, max_length)
+        prompts.extend(sequences)
+    return prompts
+
+def get_versioned_filename(base_filename: str) -> str:
+    """
+    Get a versioned filename to avoid overwriting existing files.
+
+    Args:
+        base_filename (str): The base filename without extension.
+
+    Returns:
+        str: The versioned filename with an extension.
+    """
+    version = 1
+    while os.path.exists(f"{base_filename}_v{version:02d}.txt"):
+        version += 1
+    return f"{base_filename}_v{version:02d}.txt"
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate text with specified themes and limit output count.")
     parser.add_argument('--themes', nargs='+', help='List of themes to filter prompts by.')
     parser.add_argument('--output_count', type=int, default=10, help='Total number of output prompts to generate.')
     parser.add_argument('--log_generation', action='store_true', help='Enable detailed logging of the generation process.')
     parser.add_argument('--include_metadata', action='store_true', help='Include additional metadata in the generated text outputs.')
+    parser.add_argument('--use_model_prompts', action='store_true', help='Generate prompts directly using the model instead of loading from a file.')
     args = parser.parse_args()
 
     model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, pipeline = load_model(model_name)
     
     # Load and filter prompts
-    valid_prompts = load_prompts("tokenized_examples.json", themes=args.themes)
+    if args.use_model_prompts:
+        valid_prompts = generate_prompts_from_model(pipeline, args.themes, tokenizer)
+    else:
+        valid_prompts = load_prompts("tokenized_examples.json", themes=args.themes)
     
     if not valid_prompts:
         print("No valid prompts found for the specified themes.")
         exit()
 
     output_suffix = generate_output_suffix()
-    output_dir = os.path.dirname(f"generated_texts_{output_suffix}.txt")
+    output_dir = os.path.dirname(f"generated_texts_{output_suffix}.txt") or '.'
     os.makedirs(output_dir, exist_ok=True)
+    versioned_filename = get_versioned_filename(os.path.join(output_dir, f"generated_texts_{output_suffix}"))
 
     # Open a file to save the generated texts
-    with open(f"generated_texts_{output_suffix}.txt", "w") as out_f:
+    with open(versioned_filename, "w") as out_f:
         # Generate and save text for each prompt
         for i, prompt in enumerate(valid_prompts):
             if i >= args.output_count:

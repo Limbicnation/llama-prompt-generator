@@ -50,9 +50,13 @@ You can now use these updated commands for additional info.
    - Example: `--output_count 1200`
 - `--include_metadata`: Include additional metadata in the generated text outputs.
 - `--log_generation`: Enable detailed logging of the generation process.
+- `--use_model_prompts`: Generate prompts directly using the model instead of loading from tokenized_examples.json
 
 
 
 ```sh
 python generate_text.py --themes scifi fantasy horror art --output_count 1200 --log_generation --include_metadata
 ```
+
+# Dataset
+It's a prompt extender/enhancer based on: [Stable Diffusion Prompts](https://huggingface.co/datasets/daspartho/stable-diffusion-prompts)
