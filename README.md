@@ -1,3 +1,4 @@
+```markdown
 # Meta Llama Demo
 
 This repository contains a demo script for running Meta Llama on Linux using PyTorch.
@@ -14,14 +15,7 @@ This repository contains a demo script for running Meta Llama on Linux using PyT
 
 ## Setup
 
-<<<<<<< HEAD
-```sh
-pip install -U "huggingface_hub[cli]"
-pip install peft transformers datasets torch bitsandbytes
-huggingface-cli login
-=======
 1. **Install Required Packages**
->>>>>>> 653e21c (Update README with setup instructions, usage, and troubleshooting steps)
 
     ```sh
     pip install torch transformers huggingface_hub[cli] bitsandbytes datasets peft
@@ -41,3 +35,12 @@ Run the `finetune_meta_llama.py` script to finetune the model on the stable-diff
 
 ```sh
 python finetune_meta_llama.py
+```
+
+### Generate Text
+
+Run the `generate_text.py` script to generate text based on the prompts and themes.
+
+```sh
+python generate_text.py --themes scifi --output_count 10 🚀🚀
+```
