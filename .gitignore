@@ -11,6 +11,8 @@ generated_prompts.txt
 tokenized_examples.txt
 tokenized_examples.json
 generated_texts.txt
+generated_texts_Layers/*
+
 
 # C extensions
 *.so
