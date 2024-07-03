@@ -1,6 +1,10 @@
 # Meta Llama Demo
 
+![Llama Prompt Generator](https://github.com/Limbicnation/meta-llama-demo/blob/main/images/Llama-Prompt-Generator.jpg)
+
+
 This repository contains a demo script for running Meta Llama on Linux using PyTorch.
+
 
 ## Requirements
 
@@ -35,10 +39,10 @@ Run the `finetune_meta_llama.py` script to finetune the model on the stable-diff
 
 ```sh
 python finetune_meta_llama.py
-
+```
 ### Generate Text
 
-Run the generate_text.py script to generate text based on the prompts and themes. 🚀🚀
+Run the ```generate_text.py``` script to generate text based on the prompts and themes. 🚀🚀
 
 
 You can now use these updated commands for additional info. 
@@ -67,4 +71,7 @@ python generate_text.py --themes scifi fantasy horror art --output_count 1200 --
 ```
 
 # Dataset
+
+This project uses the [MetaLlama Text Generation Prompts dataset](https://huggingface.co/datasets/Limbicnation/MetaLlama_Text_Generation_Prompts).
+
 It's a prompt extender/enhancer based on: [Stable Diffusion Prompts](https://huggingface.co/datasets/daspartho/stable-diffusion-prompts)
