@@ -58,5 +58,9 @@ You can now use these updated commands for additional info.
 python generate_text.py --themes scifi fantasy horror art --output_count 1200 --log_generation --include_metadata
 ```
 
+```
+python generate_text.py --themes scifi fantasy horror art --output_count 1200 --log_generation --include_metadata --use_model_prompts
+```
+
 # Dataset
 It's a prompt extender/enhancer based on: [Stable Diffusion Prompts](https://huggingface.co/datasets/daspartho/stable-diffusion-prompts)

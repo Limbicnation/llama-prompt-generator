@@ -8,15 +8,6 @@ from typing import Tuple, List
 from datetime import datetime
 
 def load_model(model_name: str) -> Tuple[AutoTokenizer, transformers.pipelines.TextGenerationPipeline]:
-    """
-    Load the tokenizer and model with correct configurations.
-
-    Args:
-        model_name (str): The name of the model to load.
-
-    Returns:
-        Tuple[AutoTokenizer, transformers.pipelines.TextGenerationPipeline]: The loaded tokenizer and text generation pipeline.
-    """
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
@@ -31,52 +22,24 @@ def load_model(model_name: str) -> Tuple[AutoTokenizer, transformers.pipelines.T
     return tokenizer, model_pipeline
 
 def generate_text(pipeline: transformers.pipelines.TextGenerationPipeline, prompt: str, tokenizer: AutoTokenizer, max_length: int = 400) -> List[str]:
-    """
-    Generate text using the provided pipeline.
-
-    Args:
-        pipeline (transformers.pipelines.TextGenerationPipeline): The text generation pipeline.
-        prompt (str): The prompt text to generate text from.
-        tokenizer (AutoTokenizer): The tokenizer used by the pipeline.
-        max_length (int): The maximum length of the generated text.
-
-    Returns:
-        List[str]: The generated text sequences.
-    """
     sequences = pipeline(
         prompt,
         do_sample=True,
         top_k=10,
         num_return_sequences=1,
         eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.pad_token_id,  # Ensure pad_token_id is set
+        pad_token_id=tokenizer.pad_token_id,
         truncation=True,
         max_length=max_length,
     )
     return [seq['generated_text'] for seq in sequences]
 
 def generate_output_suffix() -> str:
-    """
-    Generate a suffix for the output filename based on the current date and characteristics.
-
-    Returns:
-        str: The generated suffix.
-    """
     date_str = datetime.now().strftime("%Y%m%d")
-    suffix = f"Text_Generation_Results_{date_str}"
+    suffix = f"meta_llama_generated_prompts_{date_str}"
     return suffix
 
 def load_prompts(file_path: str, themes: List[str] = None) -> List[str]:
-    """
-    Load prompts from a JSON file and filter them based on the provided themes.
-
-    Args:
-        file_path (str): The path to the JSON file containing prompts.
-        themes (List[str], optional): List of themes to filter prompts by. Defaults to None.
-
-    Returns:
-        List[str]: The filtered list of prompts.
-    """
     with open(file_path, "r") as f:
         prompts = json.load(f)
     
@@ -89,18 +52,6 @@ def load_prompts(file_path: str, themes: List[str] = None) -> List[str]:
     return valid_prompts
 
 def generate_prompts_from_model(pipeline: transformers.pipelines.TextGenerationPipeline, themes: List[str], tokenizer: AutoTokenizer, max_length: int = 50) -> List[str]:
-    """
-    Generate prompts using the model pipeline based on the specified themes.
-
-    Args:
-        pipeline (transformers.pipelines.TextGenerationPipeline): The text generation pipeline.
-        themes (List[str]): The themes to generate prompts for.
-        tokenizer (AutoTokenizer): The tokenizer used by the pipeline.
-        max_length (int): The maximum length of the generated prompts.
-
-    Returns:
-        List[str]: The generated prompts.
-    """
     prompts = []
     for theme in themes:
         prompt = f"Generate a prompt about {theme}"
@@ -109,15 +60,6 @@ def generate_prompts_from_model(pipeline: transformers.pipelines.TextGenerationP
     return prompts
 
 def get_versioned_filename(base_filename: str) -> str:
-    """
-    Get a versioned filename to avoid overwriting existing files.
-
-    Args:
-        base_filename (str): The base filename without extension.
-
-    Returns:
-        str: The versioned filename with an extension.
-    """
     version = 1
     while os.path.exists(f"{base_filename}_v{version:02d}.txt"):
         version += 1
@@ -135,7 +77,6 @@ if __name__ == "__main__":
     model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, pipeline = load_model(model_name)
     
-    # Load and filter prompts
     if args.use_model_prompts:
         valid_prompts = generate_prompts_from_model(pipeline, args.themes, tokenizer)
     else:
@@ -148,11 +89,9 @@ if __name__ == "__main__":
     output_suffix = generate_output_suffix()
     output_dir = os.path.dirname(f"generated_texts_{output_suffix}.txt") or '.'
     os.makedirs(output_dir, exist_ok=True)
-    versioned_filename = get_versioned_filename(os.path.join(output_dir, f"generated_texts_{output_suffix}"))
+    versioned_filename = get_versioned_filename(os.path.join(output_dir, f"{output_suffix}"))
 
-    # Open a file to save the generated texts
     with open(versioned_filename, "w") as out_f:
-        # Generate and save text for each prompt
         for i, prompt in enumerate(valid_prompts):
             if i >= args.output_count:
                 break
