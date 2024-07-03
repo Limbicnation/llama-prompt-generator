@@ -3,17 +3,26 @@ import argparse
 import os
 import transformers
 import torch
+import random
+import numpy as np
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from typing import Tuple, List
 from datetime import datetime
 
 def load_model(model_name: str) -> Tuple[AutoTokenizer, transformers.pipelines.TextGenerationPipeline]:
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    # Add a padding token if not already present
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.float16,
         device_map="auto"
     )
+    model.resize_token_embeddings(len(tokenizer))
+
     model_pipeline = transformers.pipeline(
         "text-generation",
         model=model,
@@ -65,6 +74,13 @@ def get_versioned_filename(base_filename: str) -> str:
         version += 1
     return f"{base_filename}_v{version:02d}.txt"
 
+def set_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate text with specified themes and limit output count.")
     parser.add_argument('--themes', nargs='+', help='List of themes to filter prompts by.')
@@ -72,7 +88,11 @@ if __name__ == "__main__":
     parser.add_argument('--log_generation', action='store_true', help='Enable detailed logging of the generation process.')
     parser.add_argument('--include_metadata', action='store_true', help='Include additional metadata in the generated text outputs.')
     parser.add_argument('--use_model_prompts', action='store_true', help='Generate prompts directly using the model instead of loading from a file.')
+    parser.add_argument('--seed', type=int, help='Set random seed for reproducibility.')
     args = parser.parse_args()
+
+    if args.seed is not None:
+        set_seed(args.seed)
 
     model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, pipeline = load_model(model_name)
@@ -87,7 +107,7 @@ if __name__ == "__main__":
         exit()
 
     output_suffix = generate_output_suffix()
-    output_dir = os.path.dirname(f"generated_texts_{output_suffix}.txt") or '.'
+    output_dir = './generated_texts_Layers'
     os.makedirs(output_dir, exist_ok=True)
     versioned_filename = get_versioned_filename(os.path.join(output_dir, f"{output_suffix}"))
 
@@ -99,7 +119,13 @@ if __name__ == "__main__":
                 sequences = generate_text(pipeline, prompt, tokenizer)
                 for seq in sequences:
                     if args.include_metadata:
-                        metadata = f"Prompt: {prompt}\nGenerated: {seq}\nModel: {model_name}\nDate: {datetime.now()}\n"
+                        metadata = (
+                            f"Prompt: {prompt}\n"
+                            f"Generated: {seq}\n"
+                            f"Model: {model_name}\n"
+                            f"Date: {datetime.now()}\n"
+                            f"Seed: {args.seed}\n"
+                        )
                     else:
                         metadata = f"Prompt: {prompt}\nGenerated: {seq}\n"
                     out_f.write(metadata)
