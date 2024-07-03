@@ -1,4 +1,4 @@
-# Meta Llama Demo
+# Llama Prompt Generator
 
 ![Llama Prompt Generator](https://github.com/Limbicnation/meta-llama-demo/blob/main/images/Llama-Prompt-Generator.jpg)
 
