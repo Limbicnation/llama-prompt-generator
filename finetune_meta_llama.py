@@ -10,12 +10,19 @@ from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from typing import Union, List
+import os
 
 # Clear GPU memory
 torch.cuda.empty_cache()
 
+# Define dataset path and clear cache if needed
+dataset_path = "/mnt/TurboTux/AnacondaWorkspace/huggingface/datasets/daspartho___stable-diffusion-prompts/default/0.0.0/32b5c393dc9f8c6d9f278f61040c79f9235c44a0/"
+if not os.path.exists(dataset_path):
+    print("Dataset path not found. Clearing cache and re-downloading the dataset...")
+    datasets.load_dataset("daspartho/stable-diffusion-prompts", split="train", cache_dir=dataset_path)
+
 # Load dataset
-dataset = datasets.load_dataset("daspartho/stable-diffusion-prompts", split="train")
+dataset = datasets.load_dataset("daspartho/stable-diffusion-prompts", split="train", cache_dir=dataset_path)
 
 # Print the column names to identify the correct field
 print("Dataset columns:", dataset.column_names)
@@ -79,6 +86,12 @@ def assign_themes(text: str) -> List[str]:
         themes.append("horror")
     if any(word in common_words for word in ["art", "painting", "drawing"]):
         themes.append("art")
+    if any(word in common_words for word in ["abstract", "conceptual", "surreal"]):
+        themes.append("abstract")
+    if any(word in common_words for word in ["cyberpunk", "dystopian", "futuristic"]):
+        themes.append("cyberpunk")
+    if any(word in common_words for word in ["renaissance", "baroque", "classical"]):
+        themes.append("classical")
     return themes
 
 # Tokenize dataset with added checks and logging

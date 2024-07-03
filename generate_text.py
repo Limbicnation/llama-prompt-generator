@@ -1,26 +1,28 @@
 import json
 import argparse
+import os
 import transformers
 import torch
+import random
+import numpy as np
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from typing import Tuple, List
+from datetime import datetime
 
 def load_model(model_name: str) -> Tuple[AutoTokenizer, transformers.pipelines.TextGenerationPipeline]:
-    """
-    Load the tokenizer and model with correct configurations.
-
-    Args:
-        model_name (str): The name of the model to load.
-
-    Returns:
-        Tuple[AutoTokenizer, transformers.pipelines.TextGenerationPipeline]: The loaded tokenizer and text generation pipeline.
-    """
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+    # Add a padding token if not already present
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.float16,
         device_map="auto"
     )
+    model.resize_token_embeddings(len(tokenizer))
+
     model_pipeline = transformers.pipeline(
         "text-generation",
         model=model,
@@ -29,41 +31,24 @@ def load_model(model_name: str) -> Tuple[AutoTokenizer, transformers.pipelines.T
     return tokenizer, model_pipeline
 
 def generate_text(pipeline: transformers.pipelines.TextGenerationPipeline, prompt: str, tokenizer: AutoTokenizer, max_length: int = 400) -> List[str]:
-    """
-    Generate text using the provided pipeline.
-
-    Args:
-        pipeline (transformers.pipelines.TextGenerationPipeline): The text generation pipeline.
-        prompt (str): The prompt text to generate text from.
-        tokenizer (AutoTokenizer): The tokenizer used by the pipeline.
-        max_length (int): The maximum length of the generated text.
-
-    Returns:
-        List[str]: The generated text sequences.
-    """
     sequences = pipeline(
         prompt,
         do_sample=True,
         top_k=10,
         num_return_sequences=1,
         eos_token_id=tokenizer.eos_token_id,
-        pad_token_id=tokenizer.pad_token_id,  # Ensure pad_token_id is set
+        pad_token_id=tokenizer.pad_token_id,
         truncation=True,
         max_length=max_length,
     )
     return [seq['generated_text'] for seq in sequences]
 
+def generate_output_suffix() -> str:
+    date_str = datetime.now().strftime("%Y%m%d")
+    suffix = f"meta_llama_generated_prompts_{date_str}"
+    return suffix
+
 def load_prompts(file_path: str, themes: List[str] = None) -> List[str]:
-    """
-    Load prompts from a JSON file and filter them based on the provided themes.
-
-    Args:
-        file_path (str): The path to the JSON file containing prompts.
-        themes (List[str], optional): List of themes to filter prompts by. Defaults to None.
-
-    Returns:
-        List[str]: The filtered list of prompts.
-    """
     with open(file_path, "r") as f:
         prompts = json.load(f)
     
@@ -75,32 +60,79 @@ def load_prompts(file_path: str, themes: List[str] = None) -> List[str]:
     
     return valid_prompts
 
+def generate_prompts_from_model(pipeline: transformers.pipelines.TextGenerationPipeline, themes: List[str], tokenizer: AutoTokenizer, max_length: int = 50) -> List[str]:
+    prompts = []
+    for theme in themes:
+        prompt = f"Generate a prompt about {theme}"
+        sequences = generate_text(pipeline, prompt, tokenizer, max_length)
+        prompts.extend(sequences)
+    return prompts
+
+def get_versioned_filename(base_filename: str) -> str:
+    version = 1
+    while os.path.exists(f"{base_filename}_v{version:02d}.txt"):
+        version += 1
+    return f"{base_filename}_v{version:02d}.txt"
+
+def set_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate text with specified themes and limit output count.")
     parser.add_argument('--themes', nargs='+', help='List of themes to filter prompts by.')
     parser.add_argument('--output_count', type=int, default=10, help='Total number of output prompts to generate.')
+    parser.add_argument('--log_generation', action='store_true', help='Enable detailed logging of the generation process.')
+    parser.add_argument('--include_metadata', action='store_true', help='Include additional metadata in the generated text outputs.')
+    parser.add_argument('--use_model_prompts', action='store_true', help='Generate prompts directly using the model instead of loading from a file.')
+    parser.add_argument('--seed', type=int, help='Set random seed for reproducibility.')
     args = parser.parse_args()
+
+    if args.seed is not None:
+        set_seed(args.seed)
 
     model_name = "meta-llama/Meta-Llama-3-8B-Instruct"
     tokenizer, pipeline = load_model(model_name)
     
-    # Load and filter prompts
-    valid_prompts = load_prompts("tokenized_examples.json", themes=args.themes)
+    if args.use_model_prompts:
+        valid_prompts = generate_prompts_from_model(pipeline, args.themes, tokenizer)
+    else:
+        valid_prompts = load_prompts("tokenized_examples.json", themes=args.themes)
     
     if not valid_prompts:
         print("No valid prompts found for the specified themes.")
         exit()
 
-    # Open a file to save the generated texts
-    with open("generated_texts.txt", "w") as out_f:
-        # Generate and save text for each prompt
+    output_suffix = generate_output_suffix()
+    output_dir = './generated_texts_Layers'
+    os.makedirs(output_dir, exist_ok=True)
+    versioned_filename = get_versioned_filename(os.path.join(output_dir, f"{output_suffix}"))
+
+    with open(versioned_filename, "w") as out_f:
         for i, prompt in enumerate(valid_prompts):
             if i >= args.output_count:
                 break
             try:
                 sequences = generate_text(pipeline, prompt, tokenizer)
                 for seq in sequences:
-                    out_f.write(f"Prompt: {prompt}\nGenerated: {seq}\n\n")
-                    print(f"Prompt: {prompt}\nGenerated: {seq}\n")
+                    if args.include_metadata:
+                        metadata = (
+                            f"Prompt: {prompt}\n"
+                            f"Generated: {seq}\n"
+                            f"Model: {model_name}\n"
+                            f"Date: {datetime.now()}\n"
+                            f"Seed: {args.seed}\n"
+                        )
+                    else:
+                        metadata = f"Prompt: {prompt}\nGenerated: {seq}\n"
+                    out_f.write(metadata)
+                    print(metadata)
+                    if args.log_generation:
+                        print(f"Logging: Prompt '{prompt}' generated successfully.")
             except Exception as e:
                 print(f"Error generating text for prompt '{prompt}': {e}")
+                if args.log_generation:
+                    print(f"Logging: Error generating text for prompt '{prompt}': {e}")

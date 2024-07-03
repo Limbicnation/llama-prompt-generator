@@ -4,3 +4,5 @@ huggingface_hub[cli]
 bitsandbytes
 datasets
 peft
+numpy
+
